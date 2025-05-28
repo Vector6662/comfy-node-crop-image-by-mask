@@ -1,4 +1,5 @@
 from inspect import cleandoc
+import torch.nn.functional as F
 
 
 class MaskCropperNode:
@@ -26,7 +27,8 @@ class MaskCropperNode:
                 "image": ("IMAGE", {"tooltip": "This is an image"}),
                 "mask": ("MASK", {"tooltip": "mask that used to crop image"}),
                 "border_width": ("INT", {"tooltip": "border width"}),
-                "border_height": ("INT", {"tooltip": "border height"})
+                "border_height": ("INT", {"tooltip": "border height"}),
+                "square": ("BOOLEAN", {"tooltip": "square image"})
             },
         }
 
@@ -40,7 +42,7 @@ class MaskCropperNode:
 
     CATEGORY = "image"
 
-    def do_crop_by_mask(self, image, mask, border_width=0, border_height=0):
+    def do_crop_by_mask(self, image, mask, border_width=0, border_height=0, square=True):
         # image [B,H,W,3] -> [B,3,H,W]
         # mask [B,H,W]
         print('mask shape', mask.shape)
@@ -59,8 +61,16 @@ class MaskCropperNode:
 
         print(left, right, top, bottom)
 
-        top, bottom = max(0, top-border_height), min(mask.shape[0], bottom+border_height)
-        left, right = max(0, left-border_width), min(mask.shape[1], right+border_width)
+        top, bottom = max(0, top - border_height), min(mask.shape[0], bottom + border_height)
+        left, right = max(0, left - border_width), min(mask.shape[1], right + border_width)
+
+        if square:
+            width, height = abs(left - right), abs(top - bottom)
+            t, mod = abs(width-height)//2, abs(width-height) % 2
+            if width > height:
+                top, bottom = top-t, bottom+t
+            elif height > width:
+                left, right = left-t, right+t
 
         cropped_mask = mask[top:bottom, left:right]
         cropped_mask = cropped_mask.float()
@@ -85,10 +95,10 @@ class MaskCropperNode:
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
-    "MaskCropperNode": MaskCropperNode
+    "MaskCropperNode": MaskCropperNode,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "MaskCropperNode": "Crop Image By Mask"
+    "MaskCropperNode": "Crop Image By Mask",
 }
